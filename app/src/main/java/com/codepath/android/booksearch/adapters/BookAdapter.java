@@ -63,6 +63,8 @@ public class BookAdapter extends RecyclerView.Adapter<BookAdapter.ViewHolder> {
         mContext = context;
     }
 
+
+
     // Usually involves inflating a layout from XML and returning the holder
     @Override
     public BookAdapter.ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
@@ -106,5 +108,7 @@ public class BookAdapter extends RecyclerView.Adapter<BookAdapter.ViewHolder> {
     private Context getContext() {
         return mContext;
     }
+
+
 
 }

@@ -1,16 +1,25 @@
 package com.codepath.android.booksearch.activities;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.Menu;
+import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.ImageView;
+import android.widget.ProgressBar;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.SearchView;
+import androidx.appcompat.widget.ShareActionProvider;
+import androidx.appcompat.widget.Toolbar;
+import androidx.core.view.MenuItemCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.codepath.android.booksearch.GlideApp;
 import com.codepath.android.booksearch.R;
 import com.codepath.android.booksearch.adapters.BookAdapter;
 import com.codepath.android.booksearch.models.Book;
@@ -19,6 +28,7 @@ import com.codepath.asynchttpclient.callback.JsonHttpResponseHandler;
 
 import org.json.JSONArray;
 import org.json.JSONException;
+import org.parceler.Parcels;
 
 import java.util.ArrayList;
 
@@ -26,19 +36,25 @@ import okhttp3.Headers;
 
 
 public class BookListActivity extends AppCompatActivity {
+    public static final String BOOK_DETAIL_KEY = "book";
     private RecyclerView rvBooks;
     private BookAdapter bookAdapter;
     private BookClient client;
     private ArrayList<Book> abooks;
-
+    private ProgressBar progress;
+    private Intent shareIntent;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_book_list);
+        progress = (ProgressBar) findViewById(R.id.progress);
+
 
         // Checkpoint #3
         // Switch Activity to Use a Toolbar
         // see http://guides.codepath.org/android/Using-the-App-ToolBar#using-toolbar-as-actionbar
+        Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
+        setSupportActionBar(toolbar);
 
         rvBooks = findViewById(R.id.rvBooks);
         abooks = new ArrayList<>();
@@ -62,6 +78,23 @@ public class BookListActivity extends AppCompatActivity {
                 // Get Book at the given position
                 // Pass the book into details activity using extras
                 // see http://guides.codepath.org/android/Using-Intents-to-Create-Flows
+                // ActivityOne.java
+                //public void launchComposeView(context, Book) {
+                    // first parameter is the context, second is the class of the activity to launch
+                //    Intent i = new Intent(BookListActivity.this, BookDetailActivity.class);
+                    // put "extras" into the bundle for access in the second activity
+                //    i.putExtra("username", "foobar");
+                //    i.putExtra("in_reply_to", "george");
+                //    i.putExtra("code", 400);
+                    // brings up the second activity
+                //    startActivity(i);
+                //}
+
+                Intent i = new Intent(BookListActivity.this, BookDetailActivity.class);
+                i.putExtra("book", Parcels.wrap(abooks.get(position)));
+                startActivity(i);
+
+
             }
         });
 
@@ -72,18 +105,19 @@ public class BookListActivity extends AppCompatActivity {
         rvBooks.setLayoutManager(new LinearLayoutManager(this));
 
         // Fetch the data remotely
-        fetchBooks("Oscar Wilde");
     }
+
 
     // Executes an API call to the OpenLibrary search endpoint, parses the results
     // Converts them into an array of book objects and adds them to the adapter
     private void fetchBooks(String query) {
+        progress.setVisibility(ProgressBar.VISIBLE);
         client = new BookClient();
         client.getBooks(query, new JsonHttpResponseHandler() {
-
             @Override
             public void onSuccess(int statusCode, Headers headers, JSON response) {
                 try {
+                    progress.setVisibility(ProgressBar.GONE);
                     JSONArray docs;
                     if (response != null) {
                         // Get the docs json array
@@ -107,6 +141,7 @@ public class BookListActivity extends AppCompatActivity {
             @Override
             public void onFailure(int statusCode, Headers headers, String responseString, Throwable throwable) {
                 // Handle failed request here
+                progress.setVisibility(ProgressBar.GONE);
                 Log.e(BookListActivity.class.getSimpleName(),
                         "Request failed with code " + statusCode + ". Response message: " + responseString);
             }
@@ -115,16 +150,28 @@ public class BookListActivity extends AppCompatActivity {
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
-        // Inflate the menu; this adds items to the action bar if it is present.
-        getMenuInflater().inflate(R.menu.menu_book_list, menu);
-        // Checkpoint #4
-        // Add SearchView to Toolbar
-        // Refer to http://guides.codepath.org/android/Extended-ActionBar-Guide#adding-searchview-to-actionbar guide for more details
+        MenuInflater inflater = getMenuInflater();
+        inflater.inflate(R.menu.menu_book_list, menu);
+        MenuItem searchItem = menu.findItem(R.id.action_search);
+        final SearchView searchView = (SearchView) MenuItemCompat.getActionView(searchItem);
+        searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
+            @Override
+            public boolean onQueryTextSubmit(String query) {
+                // perform query here
+                fetchBooks(query);
+                // workaround to avoid issues with some emulators and keyboard devices firing twice if a keyboard enter is used
+                // see https://code.google.com/p/android/issues/detail?id=24599
+                searchView.clearFocus();
 
+                return true;
+            }
 
-        // Checkpoint #7 Show Progress Bar
-        // see https://guides.codepath.org/android/Handling-ProgressBars#progress-within-actionbar
-        return true;
+            @Override
+            public boolean onQueryTextChange(String newText) {
+                return false;
+            }
+        });
+        return super.onCreateOptionsMenu(menu);
     }
 
     @Override
